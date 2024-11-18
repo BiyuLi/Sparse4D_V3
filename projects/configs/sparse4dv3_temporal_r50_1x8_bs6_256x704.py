@@ -60,8 +60,8 @@ dist_params = dict(backend="nccl")
 log_level = "INFO"
 work_dir = None
 
-total_batch_size = 48
-num_gpus = 8
+total_batch_size = 1
+num_gpus = 1
 batch_size = total_batch_size // num_gpus
 num_iters_per_epoch = int(28130 // (num_gpus * batch_size))
 num_epochs = 100
@@ -153,16 +153,20 @@ model = dict(
             type="InstanceBank",
             num_anchor=900,
             embed_dims=embed_dims,
-            anchor="nuscenes_kmeans900.npy",
+            anchor="data/nuscenes_kmeans900.npy",
             anchor_handler=dict(type="SparseBox3DKeyPointsGenerator"),
             num_temp_instances=600 if temporal else -1,
             confidence_decay=0.6,
-            feat_grad=False,
+            feat_grad=False,   # instance feature requires no grad?
         ),
         anchor_encoder=dict(
             type="SparseBox3DEncoder",
-            vel_dims=3,
+            vel_dims=3,   # vel dims is 3?
             embed_dims=[128, 32, 32, 64] if decouple_attn else 256,
+            # pos_embed_dims = 128,
+            # size_embed_dims=32,
+            # yaw_embed_dims=32,
+            # vel_embed_dims=64,
             mode="cat" if decouple_attn else "add",
             output_fc=not decouple_attn,
             in_loops=1,
@@ -295,8 +299,9 @@ model = dict(
 # ================== data ========================
 dataset_type = "NuScenes3DDetTrackDataset"
 data_root = "data/nuscenes/"
-anno_root = "data/nuscenes_cam/"
+# anno_root = "data/nuscenes_cam/"
 anno_root = "data/nuscenes_anno_pkls/"
+prefix_info = "nuscenes-mini"
 file_client_args = dict(backend="disk")
 
 img_norm_cfg = dict(
@@ -389,7 +394,7 @@ data = dict(
     workers_per_gpu=batch_size,
     train=dict(
         **data_basic_config,
-        ann_file=anno_root + "nuscenes_infos_train.pkl",
+        ann_file=anno_root + prefix_info + "_infos_train.pkl",
         pipeline=train_pipeline,
         test_mode=False,
         data_aug_conf=data_aug_conf,
@@ -399,7 +404,7 @@ data = dict(
     ),
     val=dict(
         **data_basic_config,
-        ann_file=anno_root + "nuscenes_infos_val.pkl",
+        ann_file=anno_root + prefix_info + "_infos_val.pkl",
         pipeline=test_pipeline,
         data_aug_conf=data_aug_conf,
         test_mode=True,
@@ -408,7 +413,7 @@ data = dict(
     ),
     test=dict(
         **data_basic_config,
-        ann_file=anno_root + "nuscenes_infos_val.pkl",
+        ann_file=anno_root + prefix_info + "_infos_val.pkl",
         pipeline=test_pipeline,
         data_aug_conf=data_aug_conf,
         test_mode=True,

@@ -68,7 +68,7 @@ class Sparse4D(BaseDetector):
         else:
             num_cams = 1
         if self.use_grid_mask:
-            img = self.grid_mask(img)
+            img = self.grid_mask(img)    # 训练时随机掩码，数据增强
         if "metas" in signature(self.img_backbone.forward).parameters:
             feature_maps = self.img_backbone(img, num_cams, metas=metas)
         else:

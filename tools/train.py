@@ -27,6 +27,9 @@ from datetime import timedelta
 import cv2
 
 cv2.setNumThreads(8)
+from pathlib import Path
+CWD = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(CWD))
 
 
 def parse_args():

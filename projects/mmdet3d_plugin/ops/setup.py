@@ -54,6 +54,8 @@ if __name__ == "__main__":
                     f"src/deformable_aggregation.cpp",
                     f"src/deformable_aggregation_cuda.cu",
                 ],
+                # extra_include_path = ['/usr/local/cuda/include'],   # solve env problem
+                extra_include_path = [],
             ),
         ],
         cmdclass={"build_ext": BuildExtension},

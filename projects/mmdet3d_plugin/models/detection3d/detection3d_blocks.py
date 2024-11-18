@@ -44,11 +44,11 @@ class SparseBox3DEncoder(BaseModule):
 
         if not isinstance(embed_dims, (list, tuple)):
             embed_dims = [embed_dims] * 5
-        self.pos_fc = embedding_layer(3, embed_dims[0])
-        self.size_fc = embedding_layer(3, embed_dims[1])
-        self.yaw_fc = embedding_layer(2, embed_dims[2])
+        self.pos_fc = embedding_layer(3, embed_dims[0])   # pos feature dims 128
+        self.size_fc = embedding_layer(3, embed_dims[1])  # size feature dims 32
+        self.yaw_fc = embedding_layer(2, embed_dims[2])   # yaw feature dims 32
         if vel_dims > 0:
-            self.vel_fc = embedding_layer(self.vel_dims, embed_dims[3])
+            self.vel_fc = embedding_layer(self.vel_dims, embed_dims[3])  # vel feature dims 64
         if output_fc:
             self.output_fc = embedding_layer(embed_dims[-1], embed_dims[-1])
         else:
@@ -189,18 +189,18 @@ class SparseBox3DKeyPointsGenerator(BaseModule):
         temp_timestamps=None,
     ):
         bs, num_anchor = anchor.shape[:2]
-        size = anchor[..., None, [W, L, H]].exp()
-        key_points = self.fix_scale * size
+        size = anchor[..., None, [W, L, H]].exp()  # 对W, L, H做指数运算 -> (1, 900, 1, 3)
+        key_points = self.fix_scale * size   # 固定的7个关键点在WLH上的偏移量 TODO self.fix_scale实际更新了，why
         if self.num_learnable_pts > 0 and instance_feature is not None:
             learnable_scale = (
                 self.learnable_fc(instance_feature)
                 .reshape(bs, num_anchor, self.num_learnable_pts, 3)
                 .sigmoid()
                 - 0.5
-            )
+            )    # 可学习的6个关键点在WLH偏移scale
             key_points = torch.cat(
                 [key_points, learnable_scale * size], dim=-2
-            )
+            )    # 13个关键点的偏移量
 
         rotation_mat = anchor.new_zeros([bs, num_anchor, 3, 3])
 
