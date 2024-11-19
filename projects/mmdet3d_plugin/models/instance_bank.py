@@ -81,16 +81,18 @@ class InstanceBank(nn.Module):
         self.prev_id = 0
 
     def get(self, batch_size, metas=None, dn_metas=None):
-        # 1. 为每个样本创建相同的实例特征
-        # self.instance_feature[None] -> 添加新维度从[900, 256]变成[1, 900, 256] (全0)
-        # torch.tile(self.instance_feature[None], (batch_size, 1, 1)) -> 重复self.instance_feature
-        # [None]内容，在第一个维度重复batch_size次，第二个维度、第三个维度重复1次(保持不变)
-        # 最终得到torch.Size([batch_size, 900, 256])的全0向量
+        """ 1. 为每个样本创建相同的实例特征
+        self.instance_feature[None] -> 添加新维度从[900, 256]变成[1, 900, 256] (全0)
+        torch.tile(self.instance_feature[None], (batch_size, 1, 1)) -> 重复self.instance_feature
+        [None]内容，在第一个维度重复batch_size次，第二个维度、第三个维度重复1次(保持不变)
+        最终得到torch.Size([batch_size, 900, 256])的全0向量
+        """
         instance_feature = torch.tile(
             self.instance_feature[None], (batch_size, 1, 1)
         )
-        # 2. 为每个样本创建相同的anchor
-        # 最终得到torch.Size([batch_size, 900, 11])的anchor向量
+        """ 2. 为每个样本创建相同的anchor
+        最终得到torch.Size([batch_size, 900, 11])的anchor向量
+        """
         anchor = torch.tile(self.anchor[None], (batch_size, 1, 1))
 
         if (
@@ -100,7 +102,7 @@ class InstanceBank(nn.Module):
             history_time = self.metas["timestamp"]
             time_interval = metas["timestamp"] - history_time
             time_interval = time_interval.to(dtype=instance_feature.dtype)
-            self.mask = torch.abs(time_interval) <= self.max_time_interval
+            self.mask = torch.abs(time_interval) <= self.max_time_interval   # 时序mask
 
             if self.anchor_handler is not None:
                 T_temp2cur = self.cached_anchor.new_tensor(

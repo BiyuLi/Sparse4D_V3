@@ -147,6 +147,7 @@ class DeformableFeatureAggregation(BaseModule):
                 bs, num_anchor, self.embed_dims
             )
         else:
+            # V1实现方式， 参见V1注释
             features = self.feature_sampling(
                 feature_maps,
                 key_points,
@@ -165,13 +166,13 @@ class DeformableFeatureAggregation(BaseModule):
     def _get_weights(self, instance_feature, anchor_embed, metas=None):
         bs, num_anchor = instance_feature.shape[:2]
         feature = instance_feature + anchor_embed
-        if self.camera_encoder is not None:
+        if self.camera_encoder is not None:  # 提高对相机外参的泛化， 对投影矩阵做高维映射
             camera_embed = self.camera_encoder(
                 metas["projection_mat"][:, :, :3].reshape(
                     bs, self.num_cams, -1
                 )
             )
-            feature = feature[:, :, None] + camera_embed[:, None]
+            feature = feature[:, :, None] + camera_embed[:, None]  # 融合camera embed
 
         weights = (
             self.weights_fc(feature)
@@ -193,7 +194,7 @@ class DeformableFeatureAggregation(BaseModule):
             mask = mask.to(device=weights.device, dtype=weights.dtype)
             weights = ((mask > self.attn_drop) * weights) / (
                 1 - self.attn_drop
-            )
+            ) # 布尔值掩码应用到mask，将小于0.15的地方置0， 保持权重总数不变，未被丢弃的权重 / (1 - self.attn_drop)
         return weights
 
     @staticmethod

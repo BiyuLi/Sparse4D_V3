@@ -189,7 +189,7 @@ class SparseBox3DKeyPointsGenerator(BaseModule):
         temp_timestamps=None,
     ):
         bs, num_anchor = anchor.shape[:2]
-        size = anchor[..., None, [W, L, H]].exp()  # 对W, L, H做指数运算 -> (1, 900, 1, 3)
+        size = anchor[..., None, [W, L, H]].exp()  # 对W, L, H做指数运算 -> (1, num_anchor, 1, 3)
         key_points = self.fix_scale * size   # 固定的7个关键点在WLH上的偏移量 TODO self.fix_scale实际更新了，why
         if self.num_learnable_pts > 0 and instance_feature is not None:
             learnable_scale = (

@@ -72,19 +72,20 @@ class Sparse4D(BaseDetector):
         if "metas" in signature(self.img_backbone.forward).parameters:
             feature_maps = self.img_backbone(img, num_cams, metas=metas)
         else:
-            feature_maps = self.img_backbone(img)
+            feature_maps = self.img_backbone(img) # [(6, 256, 64, 176), (6, 512, 32, 88), (6, 1024, 16, 44), (6, 2048, 8, 22)]
         if self.img_neck is not None:
-            feature_maps = list(self.img_neck(feature_maps))
+            feature_maps = list(self.img_neck(feature_maps)) # [(6, 256, 64, 176), (6, 256, 32, 88), (6, 256, 16, 44), (6, 256, 8, 22)]
         for i, feat in enumerate(feature_maps):
             feature_maps[i] = torch.reshape(
                 feat, (bs, num_cams) + feat.shape[1:]
             )
+        # feature_maps.shape [(1, 6, 256, 64, 176), (1, 6, 256, 32, 88), (1, 6, 256, 16, 44), (1, 6, 256, 8, 22)]
         if return_depth and self.depth_branch is not None:
-            depths = self.depth_branch(feature_maps, metas.get("focal"))
+            depths = self.depth_branch(feature_maps, metas.get("focal")) # [(6, 1, 64, 176), (6, 1, 32, 88), (6, 1, 16, 44)]
         else:
             depths = None
         if self.use_deformable_func:
-            feature_maps = feature_maps_format(feature_maps)
+            feature_maps = feature_maps_format(feature_maps) # [(1, 89760, 256), (6, 4, 2), (6, 4)]   # 6*(64*176+32*88+16*44+8*22) = 89760
         if return_depth:
             return feature_maps, depths
         return feature_maps

@@ -167,7 +167,7 @@ class Sparse4DHead(BaseModule):
     ):
         if isinstance(feature_maps, torch.Tensor):
             feature_maps = [feature_maps]
-        batch_size = feature_maps[0].shape[0]
+        batch_size = feature_maps[0].shape[0] # [(1, 89760, 256), (6, 4, 2), (6, 4)]
 
         # ========= get instance info ============
         if (
@@ -197,7 +197,7 @@ class Sparse4DHead(BaseModule):
                 gt_instance_id = [
                     torch.from_numpy(x["instance_id"]).cuda()
                     for x in metas["img_metas"]
-                ]
+                ]   # 获取当前batch gt的instance id
             else:
                 gt_instance_id = None
             dn_metas = self.sampler.get_dn_anchors(
@@ -258,6 +258,8 @@ class Sparse4DHead(BaseModule):
             if self.layers[i] is None:
                 continue
             elif op == "temp_gnn":
+                # cross attention
+                # Q: instance_feature; K/V: temp_instance_feature
                 instance_feature = self.graph_model(
                     i,
                     instance_feature,
@@ -269,7 +271,20 @@ class Sparse4DHead(BaseModule):
                     if temp_instance_feature is None
                     else None,
                 )
+                '''
+                V2
+                query和query_pos, key和 key_pos 是相加的关系
+                instance_feature = self.layers[i](
+                    instance_feature,
+                    temp_instance_feature,
+                    temp_instance_feature,
+                    query_pos=anchor_embed,
+                    key_pos=temp_anchor_embed,
+                )
+                '''
             elif op == "gnn":
+                # self attention
+                # Q: instance_feature; K/V: None
                 instance_feature = self.graph_model(
                     i,
                     instance_feature,
@@ -277,6 +292,12 @@ class Sparse4DHead(BaseModule):
                     query_pos=anchor_embed,
                     attn_mask=attn_mask,
                 )
+                '''
+                V2
+                instance_feature = self.layers[i](
+                    instance_feature,
+                    query_pos=anchor_embed,
+                )'''
             elif op == "norm" or op == "ffn":
                 instance_feature = self.layers[i](instance_feature)
             elif op == "deformable":
