@@ -116,7 +116,7 @@ class DeformableFeatureAggregation(BaseModule):
         feature_maps: List[torch.Tensor],
         metas: dict,
         **kwargs: dict,
-    ):
+    ): # feature_maps [(1, 89760, 256), (6, 4, 2), (6, 4)]
         bs, num_anchor = instance_feature.shape[:2]
         key_points = self.kps_generator(anchor, instance_feature)
         weights = self._get_weights(instance_feature, anchor_embed, metas)
@@ -143,24 +143,29 @@ class DeformableFeatureAggregation(BaseModule):
                     self.num_groups,
                 )
             )
+            # V2，V3实现方式
+            # 并行边采样边融合
             features = DAF(*feature_maps, points_2d, weights).reshape(
                 bs, num_anchor, self.embed_dims
             )
         else:
             # V1实现方式， 参见V1注释
+            # 先采样再融合的策略
+            #======== 采样 ========
             features = self.feature_sampling(
                 feature_maps,
                 key_points,
                 metas["projection_mat"],
                 metas.get("image_wh"),
             )
+            #======== 融合 ========
             features = self.multi_view_level_fusion(features, weights)
             features = features.sum(dim=2)  # fuse multi-point features
-        output = self.proj_drop(self.output_proj(features))
+        output = self.proj_drop(self.output_proj(features)) # features & output: (bs, num_anchor, 256)
         if self.residual_mode == "add":
             output = output + instance_feature
         elif self.residual_mode == "cat":
-            output = torch.cat([output, instance_feature], dim=-1)
+            output = torch.cat([output, instance_feature], dim=-1)  # output: (bs, num_anchor, 512)
         return output
 
     def _get_weights(self, instance_feature, anchor_embed, metas=None):
