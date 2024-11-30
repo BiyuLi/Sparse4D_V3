@@ -1,6 +1,7 @@
 *.pyc
 *.npy
 *.pth
+.idea
 data
 work_dirs
 projects/mmdet3d_plugin/ops

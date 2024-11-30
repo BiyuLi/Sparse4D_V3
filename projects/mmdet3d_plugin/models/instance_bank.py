@@ -102,7 +102,7 @@ class InstanceBank(nn.Module):
             history_time = self.metas["timestamp"]
             time_interval = metas["timestamp"] - history_time
             time_interval = time_interval.to(dtype=instance_feature.dtype)
-            self.mask = torch.abs(time_interval) <= self.max_time_interval   # 时序mask
+            self.mask = torch.abs(time_interval) <= self.max_time_interval
 
             if self.anchor_handler is not None:
                 T_temp2cur = self.cached_anchor.new_tensor(
@@ -154,6 +154,9 @@ class InstanceBank(nn.Module):
         )
 
     def update(self, instance_feature, anchor, confidence):
+        """
+        更新实例特征和锚点。将缓存的高置信度实例特征和锚点与当前帧refine之后的实例特征和锚点进行合并，并选择置信度最高的实例进行保留
+        """
         if self.cached_feature is None:
             return instance_feature, anchor
 
@@ -168,6 +171,7 @@ class InstanceBank(nn.Module):
 
         N = self.num_anchor - self.num_temp_instances
         confidence = confidence.max(dim=-1).values
+        # 使用 topk 函数选择置信度最高的 N（300） 个实例
         _, (selected_feature, selected_anchor) = topk(
             confidence, N, instance_feature, anchor
         )
@@ -177,6 +181,13 @@ class InstanceBank(nn.Module):
         selected_anchor = torch.cat(
             [self.cached_anchor, selected_anchor], dim=1
         )
+        # self.mask用于控制batch size维度上是否选择用selected feature/anchor还是原来的feature/anchor
+        """
+        例如self.mask = tensor([[[True]],  第0个批次
+                              [[False]], # 第1个批次
+                              [[True]]], # 第2个批次
+                              device='cuda:0')
+        """
         instance_feature = torch.where(
             self.mask[:, None, None], selected_feature, instance_feature
         )
@@ -203,6 +214,9 @@ class InstanceBank(nn.Module):
         metas=None,
         feature_maps=None,
     ):
+        """
+        用于缓存实例特征、锚点和置信度。在处理序列数据时，保留一些高置信度的实例特征和锚点，以便在后续的时间步中使用
+        """
         if self.num_temp_instances <= 0:
             return
         instance_feature = instance_feature.detach()
@@ -211,13 +225,14 @@ class InstanceBank(nn.Module):
 
         self.metas = metas
         confidence = confidence.max(dim=-1).values.sigmoid()
+        # 对于前 self.num_temp_instances 个实例，将当前的 confidence 与之前的 self.confidence 乘以 self.confidence_decay 后的最大值进行比较，并取较大者
         if self.confidence is not None:
             confidence[:, : self.num_temp_instances] = torch.maximum(
                 self.confidence * self.confidence_decay,
                 confidence[:, : self.num_temp_instances],
             )
         self.temp_confidence = confidence
-
+        # 使用 topk 函数选择置信度最高的 self.num_temp_instances 个实例, 返回其confidence， feature， anchor作为缓存
         (
             self.confidence,
             (self.cached_feature, self.cached_anchor),
